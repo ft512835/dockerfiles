@@ -1,0 +1,103 @@
+
+FROM nvidia/cuda:9.0-cudnn7-runtime-ubuntu16.04
+
+LABEL maintainer="AI <407144063@qq.com>"
+
+# Update CA Certificates
+RUN apt-get update && \
+    apt-get install -y --reinstall \
+        curl \
+        ca-certificates && \
+    apt-get clean && \
+    apt-get autoremove && \
+    rm -rf /var/lib/{apt,dpkg,cache,log}/ /tmp/* /var/tmp/*
+
+# Python 3
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3 \
+        python3-dev && \
+        apt-get clean && \
+        apt-get autoremove && \
+        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+
+# pip
+RUN curl -O https://bootstrap.pypa.io/get-pip.py && \
+    python3 get-pip.py && \
+    rm get-pip.py
+
+
+# new system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        g++ \
+        libblas-dev \
+        python3-tk \
+        git && \
+        apt-get clean && \
+        apt-get autoremove && \
+        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# new python dependencies
+RUN pip --no-cache-dir install -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    matplotlib \
+    h5py \
+    numpy \
+    pandas \
+    pillow \
+    scikit-image \
+    scipy \
+    nose \
+    sklearn \
+    tensorflow-gpu
+
+
+RUN pip --no-cache-dir install -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    jieba \
+    gensim
+
+
+# Keras
+RUN pip --no-cache-dir install git+git://github.com/fchollet/keras.git
+ENV KERAS_BACKEND tensorflow
+
+
+ARG OPENCV_VERSION=3.4.0
+ARG CUDA_ARCHITECTURE="3.0"
+
+# required packages
+RUN apt-get update && \
+    apt-get install -y build-essential cmake pkg-config libgtk2.0-dev libjpeg-dev libpng-dev unzip && \
+    apt-get clean && \
+    apt-get autoremove && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    #	rm -rf /var/lib/{apt,dpkg,cache,log}/ /tmp/* /var/tmp/*
+
+
+# OpenCV
+RUN curl -L https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.zip -o opencv.zip && \
+    unzip opencv.zip && \
+    rm opencv.zip && \
+    mkdir opencv-${OPENCV_VERSION}/release && \
+    cd opencv-${OPENCV_VERSION}/release && \
+    cmake \
+        -D WITH_CUDA=ON \
+        -D CUDA_ARCH_BIN=${CUDA_ARCHITECTURE} \
+        -D CUDA_ARCH_PTX="" \ -D CUDA_FAST_MATH=ON \
+        -D CMAKE_BUILD_TYPE=RELEASE \
+        -D BUILD_TESTS=OFF \
+        -D BUILD_PERF_TESTS=OFF \
+        -D BUILD_EXAMPLES=OFF \
+        -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
+    make -j2 && \
+    make install && \
+    cd ../.. && \
+    rm -rf opencv*
+
+ENV LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
+ENV LIBRARY_PATH /usr/lib/x86_64-linux-gnu:${LIBRARY_PATH}
+
+
+WORKDIR "/root"
+CMD ["/bin/bash"]
